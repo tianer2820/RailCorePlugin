@@ -1,0 +1,7 @@
+name: RailCorePlugin
+version: 1.0.0
+main: plugin.tianer2820.railcore.RailCorePlugin
+description: Lets build railways!
+author: tianer2820
+website: 
+api-version: '1.21.6'
