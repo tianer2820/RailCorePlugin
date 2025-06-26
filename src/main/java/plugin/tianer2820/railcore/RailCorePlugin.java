@@ -2,6 +2,7 @@ package plugin.tianer2820.railcore;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -18,7 +19,7 @@ import java.util.logging.Level;
 
 public class RailCorePlugin extends JavaPlugin implements Listener {
 
-    private Map<UUID, Map<Location, Long>> customStructures = new HashMap<>();
+    private Map<UUID, Map<Location, ResourcePoint>> resourcePoints = new HashMap<>();
     private File customStructuresFile;
     private FileConfiguration customStructuresConfig;
 
@@ -33,7 +34,7 @@ public class RailCorePlugin extends JavaPlugin implements Listener {
         loadCustomStructures();
 
         // Initialize managers
-        resourcePointManager = new ResourcePointManager(this, customStructures);
+        resourcePointManager = new ResourcePointManager(this, resourcePoints);
         getServer().getPluginManager().registerEvents(resourcePointManager, this);
         RecipeManager.registerRecipes(this);
 
@@ -80,8 +81,8 @@ public class RailCorePlugin extends JavaPlugin implements Listener {
                         continue;
                     }
 
-                    Map<Location, Long> worldStructures = new HashMap<>();
-                    customStructures.put(worldUUID, worldStructures);
+                    Map<Location, ResourcePoint> worldStructures = new HashMap<>();
+                    resourcePoints.put(worldUUID, worldStructures);
 
                     Set<String> locationKeys = customStructuresConfig.getConfigurationSection("resource_points." + worldKey).getKeys(false);
                     for (String locKey : locationKeys) {
@@ -92,8 +93,17 @@ public class RailCorePlugin extends JavaPlugin implements Listener {
                                 int y = Integer.parseInt(parts[1]);
                                 int z = Integer.parseInt(parts[2]);
                                 Location location = new Location(world, x, y, z);
-                                long lastDropTime = customStructuresConfig.getLong("resource_points." + worldKey + "." + locKey);
-                                worldStructures.put(location, lastDropTime);
+                                long lastDropTime = customStructuresConfig.getLong("resource_points." + worldKey + "." + locKey + ".lastDropTime", 0L);
+                                String resourceTypeStr = customStructuresConfig.getString("resource_points." + worldKey + "." + locKey + ".resourceType", "STONE");
+                                String lastItemUUIDStr = customStructuresConfig.getString("resource_points." + worldKey + "." + locKey + ".lastItemEntityUUID", null);
+                                Material resourceType = Material.getMaterial(resourceTypeStr);
+                                ResourcePoint rp = new ResourcePoint(location, lastDropTime, resourceType);
+                                if (lastItemUUIDStr != null) {
+                                    try {
+                                        rp.setLastItemEntityUUID(UUID.fromString(lastItemUUIDStr));
+                                    } catch (IllegalArgumentException ignored) {}
+                                }
+                                worldStructures.put(location, rp);
                             } else {
                                 getLogger().warning("Malformed location key: " + locKey + " in " + worldKey);
                             }
@@ -106,7 +116,7 @@ public class RailCorePlugin extends JavaPlugin implements Listener {
                 }
             }
         }
-        getLogger().info("Loaded " + customStructures.values().stream().mapToLong(Map::size).sum() + " custom structures.");
+        getLogger().info("Loaded " + resourcePoints.values().stream().mapToLong(Map::size).sum() + " custom structures.");
     }
 
 
@@ -115,22 +125,28 @@ public class RailCorePlugin extends JavaPlugin implements Listener {
      */
     public void saveCustomStructures() {
         customStructuresConfig = new YamlConfiguration(); // Clear previous config to prevent old data
-        for (Map.Entry<UUID, Map<Location, Long>> worldEntry : customStructures.entrySet()) {
+        for (Map.Entry<UUID, Map<Location, ResourcePoint>> worldEntry : resourcePoints.entrySet()) {
             UUID worldUUID = worldEntry.getKey();
-            Map<Location, Long> locations = worldEntry.getValue();
+            Map<Location, ResourcePoint> locations = worldEntry.getValue();
 
-            for (Map.Entry<Location, Long> locEntry : locations.entrySet()) {
+            for (Map.Entry<Location, ResourcePoint> locEntry : locations.entrySet()) {
                 Location loc = locEntry.getKey();
-                Long lastDropTime = locEntry.getValue();
+                ResourcePoint rp = locEntry.getValue();
                 // Store location as X_Y_Z string
                 String locKey = loc.getBlockX() + "_" + loc.getBlockY() + "_" + loc.getBlockZ();
-                customStructuresConfig.set("resource_points." + worldUUID.toString() + "." + locKey, lastDropTime);
+                customStructuresConfig.set("resource_points." + worldUUID.toString() + "." + locKey + ".lastDropTime", rp.getLastDropTime());
+                customStructuresConfig.set("resource_points." + worldUUID.toString() + "." + locKey + ".resourceType", rp.getResourceType().name());
+                if (rp.getLastItemEntityUUID() != null) {
+                    customStructuresConfig.set("resource_points." + worldUUID.toString() + "." + locKey + ".lastItemEntityUUID", rp.getLastItemEntityUUID().toString());
+                } else {
+                    customStructuresConfig.set("resource_points." + worldUUID.toString() + "." + locKey + ".lastItemEntityUUID", null);
+                }
             }
         }
 
         try {
             customStructuresConfig.save(customStructuresFile);
-            getLogger().info("Saved " + customStructures.values().stream().mapToLong(Map::size).sum() + " custom structures.");
+            getLogger().info("Saved " + resourcePoints.values().stream().mapToLong(Map::size).sum() + " custom structures.");
         } catch (IOException e) {
             getLogger().log(Level.SEVERE, "Could not save custom_structures.yml file!", e);
         }

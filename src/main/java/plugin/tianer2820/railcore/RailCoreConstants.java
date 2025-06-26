@@ -12,7 +12,7 @@ public class RailCoreConstants {
     public static final Material RESOURCE_POINT_RING_MATERIAL = Material.IRON_BLOCK;
     public static final Material RESOURCE_POINT_CENTER_MATERIAL = Material.GLOWSTONE;
 
-    public static final Material[] POSSIBLE_DROPS = {
+    public static final Material[] RESOURCE_TYPES = {
             Material.IRON_INGOT,
             Material.GOLD_INGOT,
             Material.DIAMOND,
@@ -24,4 +24,19 @@ public class RailCoreConstants {
             Material.COAL,
             Material.COPPER_INGOT
     };
+
+    // Must match RESOURCE_TYPES order
+    public static final double[] RESOURCE_TYPE_WEIGHTS = {
+            0.25, // IRON_INGOT
+            0.15, // GOLD_INGOT
+            0.05, // DIAMOND
+            0.05, // EMERALD
+            0.10, // LAPIS_LAZULI
+            0.10, // REDSTONE
+            0.10, // RAW_IRON
+            0.05, // RAW_GOLD
+            0.10, // COAL
+            0.05  // COPPER_INGOT
+    };
+
 }

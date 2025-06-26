@@ -2,6 +2,8 @@ package plugin.tianer2820.railcore;
 
 import org.bukkit.*;
 import org.bukkit.block.Block;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.Item;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
@@ -11,13 +13,25 @@ import org.bukkit.inventory.ItemStack;
 import java.util.*;
 
 public class ResourcePointManager implements Listener {
-    private final Map<UUID, Map<Location, Long>> customStructures;
+    private final Map<UUID, Map<Location, ResourcePoint>> resourcePoints;
     private final Random random = new Random();
     private final RailCorePlugin plugin;
 
-    public ResourcePointManager(RailCorePlugin plugin, Map<UUID, Map<Location, Long>> customStructures) {
+    public ResourcePointManager(RailCorePlugin plugin, Map<UUID, Map<Location, ResourcePoint>> resourcePoints) {
         this.plugin = plugin;
-        this.customStructures = customStructures;
+        this.resourcePoints = resourcePoints;
+    }
+
+    private Material selectWeightedResourceType() {
+        double r = random.nextDouble();
+        double cumulative = 0.0;
+        for (int i = 0; i < RailCoreConstants.RESOURCE_TYPES.length; i++) {
+            cumulative += RailCoreConstants.RESOURCE_TYPE_WEIGHTS[i];
+            if (r < cumulative) {
+                return RailCoreConstants.RESOURCE_TYPES[i];
+            }
+        }
+        return RailCoreConstants.RESOURCE_TYPES[RailCoreConstants.RESOURCE_TYPES.length - 1]; // fallback
     }
 
 
@@ -50,10 +64,11 @@ public class ResourcePointManager implements Listener {
                 // Only generate if there isn't already a structure nearby
                 if (!isStructureTooClose(structureBaseLocation)) {
                     Location centerLocation = buildCustomStructure(structureBaseLocation);
-                    // Store the structure location and initial last drop time (now)
-                    customStructures.computeIfAbsent(world.getUID(), k -> new HashMap<>())
-                                    .put(centerLocation, System.currentTimeMillis());
-                    plugin.getLogger().info("Generated custom structure at X:" + x + ", Y:" + (y + 1) + ", Z:" + z + " in world " + world.getName());
+                    Material resourceType = selectWeightedResourceType();
+                    ResourcePoint rp = new ResourcePoint(centerLocation, System.currentTimeMillis(), resourceType);
+                    resourcePoints.computeIfAbsent(world.getUID(), k -> new HashMap<>())
+                                 .put(centerLocation, rp);
+                    plugin.getLogger().info("Generated custom structure at X:" + x + ", Y:" + (y + 1) + ", Z:" + z + " in world " + world.getName() + " with resource " + resourceType);
                 }
             }
         }
@@ -67,7 +82,7 @@ public class ResourcePointManager implements Listener {
      * @return true if a structure is too close, false otherwise.
      */
     private boolean isStructureTooClose(Location newLocation) {
-        Map<Location, Long> worldStructures = customStructures.get(newLocation.getWorld().getUID());
+        Map<Location, ResourcePoint> worldStructures = resourcePoints.get(newLocation.getWorld().getUID());
         if (worldStructures != null) {
             for (Location existingLoc : worldStructures.keySet()) {
                 if (existingLoc.distanceSquared(newLocation) < RailCoreConstants.MIN_DISTANCE_SQ) {
@@ -135,32 +150,42 @@ public class ResourcePointManager implements Listener {
             @Override
             public void run() {
                 long currentTime = System.currentTimeMillis();
-                plugin.getLogger().info("Checking custom structures for resource drops...");
-                Map<UUID, Map<Location, Long>> structuresCopy = new HashMap<>(customStructures);
-                structuresCopy.forEach((worldUUID, worldStructures) -> {
+                plugin.getLogger().info("Checking resource points for resource drops...");
+                Map<UUID, Map<Location, ResourcePoint>> pointsCopy = new HashMap<>();
+                for (Map.Entry<UUID, Map<Location, ResourcePoint>> entry : resourcePoints.entrySet()) {
+                    pointsCopy.put(entry.getKey(), new HashMap<>(entry.getValue()));
+                }
+                pointsCopy.forEach((worldUUID, worldPoints) -> {
                     World world = Bukkit.getWorld(worldUUID);
                     if (world == null) {
-                        plugin.getLogger().warning("World with UUID " + worldUUID + " not loaded. Skipping structure checks.");
+                        plugin.getLogger().warning("World with UUID " + worldUUID + " not loaded. Skipping resource point checks.");
                         return;
                     }
-                    new HashMap<>(worldStructures).forEach((location, lastDropTime) -> {
-                        if (currentTime - lastDropTime >= RailCoreConstants.RESOURCE_DROP_COOLDOWN_MILLIS) {
+                    worldPoints.forEach((location, rp) -> {
+                        if (currentTime - rp.getLastDropTime() >= RailCoreConstants.RESOURCE_DROP_COOLDOWN_MILLIS) {
                             Block block = location.getBlock();
                             if (block.getType() == RailCoreConstants.RESOURCE_POINT_CENTER_MATERIAL) {
                                 if (block.getChunk().isLoaded()) {
-                                    int numItemsToDrop = random.nextInt(3) + 1;
-                                    for (int i = 0; i < numItemsToDrop; i++) {
-                                        Material dropMaterial = RailCoreConstants.POSSIBLE_DROPS[random.nextInt(RailCoreConstants.POSSIBLE_DROPS.length)];
+                                    boolean shouldDrop = true;
+                                    UUID prevItemUUID = rp.getLastItemEntityUUID();
+                                    if (prevItemUUID != null) {
+                                        Entity prevEntity = Bukkit.getEntity(prevItemUUID);
+                                        if (prevEntity instanceof Item && !prevEntity.isDead()) {
+                                            shouldDrop = false;
+                                        }
+                                    }
+                                    if (shouldDrop) {
                                         int amount = random.nextInt(3) + 1;
                                         Location dropLoc = block.getLocation().clone().add(0, -1, 0);
-                                        block.getWorld().dropItemNaturally(dropLoc, new ItemStack(dropMaterial, amount));
+                                        Item item = block.getWorld().dropItem(dropLoc, new ItemStack(rp.getResourceType(), amount));
+                                        plugin.getLogger().info("Dropped resources at resource point: " + location.getBlockX() + "," + location.getBlockY() + "," + location.getBlockZ() + " (" + rp.getResourceType() + ")");
+                                        rp.setLastDropTime(currentTime);
+                                        rp.setLastItemEntityUUID(item.getUniqueId());
                                     }
-                                    plugin.getLogger().info("Dropped resources at custom structure: " + location.getBlockX() + "," + location.getBlockY() + "," + location.getBlockZ());
-                                    worldStructures.put(location, currentTime);
                                 }
                             } else {
-                                plugin.getLogger().warning("Fluorite block missing at " + location + ". Structure is now broken and will be removed.");
-                                worldStructures.remove(location);
+                                plugin.getLogger().warning("Fluorite block missing at " + location + ". Resource point is now broken and will be removed.");
+                                resourcePoints.get(worldUUID).remove(location);
                             }
                         }
                     });
@@ -179,9 +204,9 @@ public class ResourcePointManager implements Listener {
         Location loc = block.getLocation();
         World world = loc.getWorld();
         UUID worldUUID = world.getUID();
-        Map<Location, Long> worldStructures = customStructures.get(worldUUID);
-        if (worldStructures != null && worldStructures.containsKey(loc)) {
-            worldStructures.remove(loc);
+        Map<Location, ResourcePoint> worldPoints = resourcePoints.get(worldUUID);
+        if (worldPoints != null && worldPoints.containsKey(loc)) {
+            worldPoints.remove(loc);
             plugin.getLogger().info("Resource point at " + loc.getBlockX() + "," + loc.getBlockY() + "," + loc.getBlockZ() + " was broken (fluorite destroyed).");
             plugin.saveCustomStructures();
         }
