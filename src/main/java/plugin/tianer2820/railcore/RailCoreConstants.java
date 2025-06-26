@@ -11,6 +11,7 @@ public class RailCoreConstants {
     public static final int RESOURCE_POINT_RADIUS = 4;
     public static final double GENERATE_CHANCE = 0.01;
     public static final double MIN_DISTANCE_SQ = 50 * 50;
+    public static final long RESOURCE_POINT_SAVE_INTERVAL_MILLIS = 1000 * 60 * 2; // 2 min
     public static final Material RESOURCE_POINT_RING_MATERIAL = Material.IRON_BLOCK;
     public static final Material RESOURCE_POINT_CENTER_MATERIAL = Material.GLOWSTONE;
 

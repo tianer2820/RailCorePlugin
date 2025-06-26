@@ -3,8 +3,10 @@ package plugin.tianer2820.railcore;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.ShapedRecipe;
+import org.bukkit.inventory.ShapelessRecipe;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public class RecipeManager {
@@ -19,9 +21,8 @@ public class RecipeManager {
         for (Material railType : railTypes) {
             ItemStack result = new ItemStack(railType, 2);
             NamespacedKey key = new NamespacedKey(plugin, railType.name().toLowerCase() + "_dup");
-            ShapedRecipe recipe = new ShapedRecipe(key, result);
-            recipe.shape(" R ", "R R", " R ");
-            recipe.setIngredient('R', railType);
+            ShapelessRecipe recipe = new ShapelessRecipe(key, result);
+            recipe.addIngredient(railType);
             Bukkit.addRecipe(recipe);
         }
         // Tool Efficiency Recipes
@@ -34,7 +35,8 @@ public class RecipeManager {
                 Material.GOLDEN_SHOVEL, Material.DIAMOND_SHOVEL, Material.NETHERITE_SHOVEL
         };
         for (Material toolMaterial : toolMaterials) {
-            ItemStack result = new ItemStack(toolMaterial, 2);
+            ItemStack result = new ItemStack(toolMaterial, 1);
+            result.addEnchantment(Enchantment.EFFICIENCY, 5);
             NamespacedKey key = new NamespacedKey(plugin, toolMaterial.name().toLowerCase() + "_efficiency_crafting");
             ShapedRecipe recipe = new ShapedRecipe(key, result);
             recipe.shape("TT", "TT");

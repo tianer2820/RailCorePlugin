@@ -17,11 +17,13 @@ public class ResourcePointManager implements Listener {
     private final Random random = new Random();
     private final RailCorePlugin plugin;
     private final double totalResourceTypeWeight;
+    private long previousSaveTime;
 
     public ResourcePointManager(RailCorePlugin plugin, Map<UUID, Map<Location, ResourcePoint>> resourcePoints) {
         this.plugin = plugin;
         this.resourcePoints = resourcePoints;
         this.totalResourceTypeWeight = RailCoreConstants.RESOURCE_TYPES.values().stream().mapToDouble(Double::doubleValue).sum();
+        this.previousSaveTime = System.currentTimeMillis();
     }
 
     private Material selectWeightedResourceType() {
@@ -187,7 +189,7 @@ public class ResourcePointManager implements Listener {
                                     }
                                     if (shouldDrop) {
                                         int amount = random.nextInt(3) + 1;
-                                        Location dropLoc = block.getLocation().clone().add(0, -1, 0);
+                                        Location dropLoc = block.getLocation().clone().add(0.5, -1, 0.5);
                                         Item item = block.getWorld().dropItem(dropLoc, new ItemStack(rp.getResourceType(), amount));
                                         plugin.getLogger().info("Dropped resources at resource point: " + location.getBlockX() + "," + location.getBlockY() + "," + location.getBlockZ() + " (" + rp.getResourceType() + ")");
                                         rp.setLastDropTime(currentTime);
@@ -201,7 +203,10 @@ public class ResourcePointManager implements Listener {
                         }
                     });
                 });
-                plugin.saveCustomStructures();
+                if (currentTime - previousSaveTime >= RailCoreConstants.RESOURCE_POINT_SAVE_INTERVAL_MILLIS) {
+                    plugin.saveCustomStructures();
+                    previousSaveTime = currentTime;
+                }
             }
         }.runTaskTimer(plugin, RailCoreConstants.RESOURCE_DROP_CHECK_INTERVAL_TICKS, RailCoreConstants.RESOURCE_DROP_CHECK_INTERVAL_TICKS);
     }
