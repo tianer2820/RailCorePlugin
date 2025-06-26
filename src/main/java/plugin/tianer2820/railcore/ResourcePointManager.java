@@ -49,10 +49,10 @@ public class ResourcePointManager implements Listener {
 
                 // Only generate if there isn't already a structure nearby
                 if (!isStructureTooClose(structureBaseLocation)) {
-                    buildCustomStructure(structureBaseLocation);
+                    Location centerLocation = buildCustomStructure(structureBaseLocation);
                     // Store the structure location and initial last drop time (now)
                     customStructures.computeIfAbsent(world.getUID(), k -> new HashMap<>())
-                                    .put(structureBaseLocation, System.currentTimeMillis());
+                                    .put(centerLocation, System.currentTimeMillis());
                     plugin.getLogger().info("Generated custom structure at X:" + x + ", Y:" + (y + 1) + ", Z:" + z + " in world " + world.getName());
                 }
             }
@@ -79,7 +79,7 @@ public class ResourcePointManager implements Listener {
     }
 
 
-    public void buildCustomStructure(Location baseLocation) {
+    public Location buildCustomStructure(Location baseLocation) {
         World world = baseLocation.getWorld();
         int x = baseLocation.getBlockX();
         int y = baseLocation.getBlockY();
@@ -88,9 +88,14 @@ public class ResourcePointManager implements Listener {
         // Build a 5x5 stone brick base
         for (int i = -2; i <= 2; i++) {
             for (int j = -2; j <= 2; j++) {
-                world.getBlockAt(x + i, y - 1, z + j).setType(Material.STONE_BRICKS);
+                world.getBlockAt(x + i, y, z + j).setType(Material.STONE_BRICKS);
             }
         }
+
+        Location centerLocation = new Location(world, x, y + RailCoreConstants.RESOURCE_POINT_RADIUS, z);
+        x = centerLocation.getBlockX();
+        y = centerLocation.getBlockY();
+        z = centerLocation.getBlockZ();
 
         // Build three intersecting rings (X, Y, Z axes)
         int radius = RailCoreConstants.RESOURCE_POINT_RADIUS;
@@ -98,7 +103,7 @@ public class ResourcePointManager implements Listener {
         // X ring (YZ plane)
         for (int dy = -radius; dy <= radius; dy++) {
             for (int dz = -radius; dz <= radius; dz++) {
-                if (Math.abs(dy * dy + dz * dz - radius * radius) <= 1) {
+                if (Math.abs(dy * dy + dz * dz - radius * radius) <= 1.5) {
                     world.getBlockAt(x, y + dy, z + dz).setType(ringMaterial);
                 }
             }
@@ -106,7 +111,7 @@ public class ResourcePointManager implements Listener {
         // Y ring (XZ plane)
         for (int dx = -radius; dx <= radius; dx++) {
             for (int dz = -radius; dz <= radius; dz++) {
-                if (Math.abs(dx * dx + dz * dz - radius * radius) <= 1) {
+                if (Math.abs(dx * dx + dz * dz - radius * radius) <= 1.5) {
                     world.getBlockAt(x + dx, y, z + dz).setType(ringMaterial);
                 }
             }
@@ -114,13 +119,15 @@ public class ResourcePointManager implements Listener {
         // Z ring (XY plane)
         for (int dx = -radius; dx <= radius; dx++) {
             for (int dy = -radius; dy <= radius; dy++) {
-                if (Math.abs(dx * dx + dy * dy - radius * radius) <= 1) {
+                if (Math.abs(dx * dx + dy * dy - radius * radius) <= 1.5) {
                     world.getBlockAt(x + dx, y + dy, z).setType(ringMaterial);
                 }
             }
         }
         // Place the center block (fluorite)
         world.getBlockAt(x, y, z).setType(RailCoreConstants.RESOURCE_POINT_CENTER_MATERIAL);
+        
+        return centerLocation;
     }
 
     public void startResourceDropTask() {
