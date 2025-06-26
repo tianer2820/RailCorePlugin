@@ -16,22 +16,24 @@ public class ResourcePointManager implements Listener {
     private final Map<UUID, Map<Location, ResourcePoint>> resourcePoints;
     private final Random random = new Random();
     private final RailCorePlugin plugin;
+    private final double totalResourceTypeWeight;
 
     public ResourcePointManager(RailCorePlugin plugin, Map<UUID, Map<Location, ResourcePoint>> resourcePoints) {
         this.plugin = plugin;
         this.resourcePoints = resourcePoints;
+        this.totalResourceTypeWeight = RailCoreConstants.RESOURCE_TYPES.values().stream().mapToDouble(Double::doubleValue).sum();
     }
 
     private Material selectWeightedResourceType() {
-        double r = random.nextDouble();
+        double r = random.nextDouble() * totalResourceTypeWeight;
         double cumulative = 0.0;
-        for (int i = 0; i < RailCoreConstants.RESOURCE_TYPES.length; i++) {
-            cumulative += RailCoreConstants.RESOURCE_TYPE_WEIGHTS[i];
+        for (Material resourceType : RailCoreConstants.RESOURCE_TYPES.keySet()) {
+            cumulative += RailCoreConstants.RESOURCE_TYPES.get(resourceType);
             if (r < cumulative) {
-                return RailCoreConstants.RESOURCE_TYPES[i];
+                return resourceType;
             }
         }
-        return RailCoreConstants.RESOURCE_TYPES[RailCoreConstants.RESOURCE_TYPES.length - 1]; // fallback
+        return RailCoreConstants.RESOURCE_TYPES.keySet().stream().findFirst().orElse(null); // fallback
     }
 
 
@@ -116,26 +118,35 @@ public class ResourcePointManager implements Listener {
         int radius = RailCoreConstants.RESOURCE_POINT_RADIUS;
         Material ringMaterial = RailCoreConstants.RESOURCE_POINT_RING_MATERIAL;
         // X ring (YZ plane)
-        for (int dy = -radius; dy <= radius; dy++) {
-            for (int dz = -radius; dz <= radius; dz++) {
-                if (Math.abs(dy * dy + dz * dz - radius * radius) <= 1.5) {
+        for (int dy = 0; dy <= radius; dy++) {
+            for (int dz = 0; dz <= radius; dz++) {
+                if (Math.abs(Math.sqrt(dy * dy + dz * dz) - radius) <= 0.7) {
                     world.getBlockAt(x, y + dy, z + dz).setType(ringMaterial);
+                    world.getBlockAt(x, y - dy, z + dz).setType(ringMaterial);
+                    world.getBlockAt(x, y + dy, z - dz).setType(ringMaterial);
+                    world.getBlockAt(x, y - dy, z - dz).setType(ringMaterial);
                 }
             }
         }
         // Y ring (XZ plane)
-        for (int dx = -radius; dx <= radius; dx++) {
-            for (int dz = -radius; dz <= radius; dz++) {
-                if (Math.abs(dx * dx + dz * dz - radius * radius) <= 1.5) {
+        for (int dx = 0; dx <= radius; dx++) {
+            for (int dz = 0; dz <= radius; dz++) {
+                if (Math.abs(Math.sqrt(dx * dx + dz * dz) - radius) <= 0.7) {
                     world.getBlockAt(x + dx, y, z + dz).setType(ringMaterial);
+                    world.getBlockAt(x - dx, y, z + dz).setType(ringMaterial);
+                    world.getBlockAt(x + dx, y, z - dz).setType(ringMaterial);
+                    world.getBlockAt(x - dx, y, z - dz).setType(ringMaterial);
                 }
             }
         }
         // Z ring (XY plane)
-        for (int dx = -radius; dx <= radius; dx++) {
-            for (int dy = -radius; dy <= radius; dy++) {
-                if (Math.abs(dx * dx + dy * dy - radius * radius) <= 1.5) {
+        for (int dx = 0; dx <= radius; dx++) {
+            for (int dy = 0; dy <= radius; dy++) {
+                if (Math.abs(Math.sqrt(dx * dx + dy * dy) - radius) <= 0.7) {
                     world.getBlockAt(x + dx, y + dy, z).setType(ringMaterial);
+                    world.getBlockAt(x - dx, y + dy, z).setType(ringMaterial);
+                    world.getBlockAt(x + dx, y - dy, z).setType(ringMaterial);
+                    world.getBlockAt(x - dx, y - dy, z).setType(ringMaterial);
                 }
             }
         }
