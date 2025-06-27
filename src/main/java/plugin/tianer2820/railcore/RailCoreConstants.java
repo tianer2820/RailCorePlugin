@@ -20,9 +20,10 @@ public class RailCoreConstants {
     public static final boolean HIGH_VOLTAGE_RAIL_EXCLUDE_PLAYER = false;
 
     public static final Map<Material, Double> RESOURCE_TYPES = new HashMap<>() {{
-        put(Material.COAL, 0.2);
+        put(Material.COAL, 0.3);
         put(Material.RAW_IRON, 0.2);
         put(Material.OAK_LOG, 0.2);
+        put(Material.DIRT, 0.15);
 
         put(Material.RAW_GOLD, 0.1);
         put(Material.RAW_COPPER, 0.1);
@@ -70,7 +71,16 @@ public class RailCoreConstants {
         put(Material.PUMPKIN, 0.1);
     }};
 
+    public static final Map<Material, Double> DIRT_LOOTS = new HashMap<>() {{
+        put(Material.DIRT, 1.0);
+        put(Material.COBBLESTONE, 1.0);
+        put(Material.SAND, 1.0);
+        put(Material.GRAVEL, 1.0);
+        put(Material.CLAY, 0.2);
+    }};
+
     public static final double totalMonsterLootWeight = MONSTER_LOOTS.values().stream().mapToDouble(Double::doubleValue).sum();
     public static final double totalCropLootWeight = CROP_LOOTS.values().stream().mapToDouble(Double::doubleValue).sum();
     public static final double totalResourceTypeWeight = RESOURCE_TYPES.values().stream().mapToDouble(Double::doubleValue).sum();
+    public static final double totalDirtLootWeight = DIRT_LOOTS.values().stream().mapToDouble(Double::doubleValue).sum();
 }

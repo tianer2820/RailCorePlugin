@@ -194,6 +194,8 @@ public class ResourcePointManager implements Listener {
                                         actualDropType = selectWeighted(RailCoreConstants.MONSTER_LOOTS, RailCoreConstants.totalMonsterLootWeight);
                                     } else if (resourceType == Material.WHEAT) {
                                         actualDropType = selectWeighted(RailCoreConstants.CROP_LOOTS, RailCoreConstants.totalCropLootWeight);
+                                    } else if (resourceType == Material.DIRT) {
+                                        actualDropType = selectWeighted(RailCoreConstants.DIRT_LOOTS, RailCoreConstants.totalDirtLootWeight);
                                     }
 
                                     Item item = block.getWorld().dropItem(dropLoc, new ItemStack(actualDropType, amount));
