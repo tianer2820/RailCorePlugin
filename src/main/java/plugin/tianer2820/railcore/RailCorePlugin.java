@@ -24,6 +24,7 @@ public class RailCorePlugin extends JavaPlugin implements Listener {
     private FileConfiguration customStructuresConfig;
 
     private ResourcePointManager resourcePointManager;
+    private HighVoltageRailManager highVoltageRailManager;
 
     @Override
     public void onEnable() {
@@ -37,6 +38,8 @@ public class RailCorePlugin extends JavaPlugin implements Listener {
         resourcePointManager = new ResourcePointManager(this, resourcePoints);
         getServer().getPluginManager().registerEvents(resourcePointManager, this);
         RecipeManager.registerRecipes(this);
+        highVoltageRailManager = new HighVoltageRailManager(this);
+        getServer().getPluginManager().registerEvents(highVoltageRailManager, this);
 
         // Start the periodic resource drop task
         resourcePointManager.startResourceDropTask();

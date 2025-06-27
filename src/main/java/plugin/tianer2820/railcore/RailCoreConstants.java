@@ -14,6 +14,11 @@ public class RailCoreConstants {
     public static final Material RESOURCE_POINT_RING_MATERIAL = Material.IRON_BLOCK;
     public static final Material RESOURCE_POINT_CENTER_MATERIAL = Material.GLOWSTONE;
 
+    public static final boolean ENABLE_HIGH_VOLTAGE_RAIL = true;
+    public static final double HIGH_VOLTAGE_RAIL_DAMAGE = 2.0;
+    public static final long HIGH_VOLTAGE_RAIL_INTERVAL_TICKS = 20L;
+    public static final boolean HIGH_VOLTAGE_RAIL_EXCLUDE_PLAYER = false;
+
     public static final Map<Material, Double> RESOURCE_TYPES = new HashMap<>() {{
         put(Material.COAL, 0.2);
         put(Material.RAW_IRON, 0.2);
