@@ -29,6 +29,7 @@ public class HighVoltageRailManager implements Listener {
                         // Only affect mobs (animals and monsters), not items, vehicles, etc.
                         if (entity.isDead()) continue;
                         if (RailCoreConstants.HIGH_VOLTAGE_RAIL_EXCLUDE_PLAYER && entity instanceof Player) continue;
+                        if (entity.getVehicle() != null) continue;
                         Location loc = entity.getLocation();
                         if (isOnPoweredRail(loc)) {
                             entity.damage(RailCoreConstants.HIGH_VOLTAGE_RAIL_DAMAGE, DamageSource.builder(DamageType.LIGHTNING_BOLT).withDamageLocation(loc).build());
