@@ -16,21 +16,19 @@ public class ResourcePointManager implements Listener {
     private final Map<UUID, Map<Location, ResourcePoint>> resourcePoints;
     private final Random random = new Random();
     private final RailCorePlugin plugin;
-    private final double totalResourceTypeWeight;
     private long previousSaveTime;
 
     public ResourcePointManager(RailCorePlugin plugin, Map<UUID, Map<Location, ResourcePoint>> resourcePoints) {
         this.plugin = plugin;
         this.resourcePoints = resourcePoints;
-        this.totalResourceTypeWeight = RailCoreConstants.RESOURCE_TYPES.values().stream().mapToDouble(Double::doubleValue).sum();
         this.previousSaveTime = System.currentTimeMillis();
     }
 
-    private Material selectWeightedResourceType() {
-        double r = random.nextDouble() * totalResourceTypeWeight;
+    private Material selectWeighted(Map<Material, Double> weights, double totalWeight) {
+        double r = random.nextDouble() * totalWeight;
         double cumulative = 0.0;
-        for (Material resourceType : RailCoreConstants.RESOURCE_TYPES.keySet()) {
-            cumulative += RailCoreConstants.RESOURCE_TYPES.get(resourceType);
+        for (Material resourceType : weights.keySet()) {
+            cumulative += weights.get(resourceType);
             if (r < cumulative) {
                 return resourceType;
             }
@@ -68,7 +66,7 @@ public class ResourcePointManager implements Listener {
                 // Only generate if there isn't already a structure nearby
                 if (!isStructureTooClose(structureBaseLocation)) {
                     Location centerLocation = buildCustomStructure(structureBaseLocation);
-                    Material resourceType = selectWeightedResourceType();
+                    Material resourceType = selectWeighted(RailCoreConstants.RESOURCE_TYPES, RailCoreConstants.totalResourceTypeWeight);
                     ResourcePoint rp = new ResourcePoint(centerLocation, System.currentTimeMillis(), resourceType);
                     resourcePoints.computeIfAbsent(world.getUID(), k -> new HashMap<>())
                                  .put(centerLocation, rp);
@@ -175,32 +173,40 @@ public class ResourcePointManager implements Listener {
                         return;
                     }
                     worldPoints.forEach((location, rp) -> {
-                        if (currentTime - rp.getLastDropTime() >= RailCoreConstants.RESOURCE_DROP_COOLDOWN_MILLIS) {
-                            Block block = location.getBlock();
-                            if (block.getType() == RailCoreConstants.RESOURCE_POINT_CENTER_MATERIAL) {
-                                if (block.getChunk().isLoaded()) {
-                                    boolean shouldDrop = true;
-                                    UUID prevItemUUID = rp.getLastItemEntityUUID();
-                                    if (prevItemUUID != null) {
-                                        Entity prevEntity = Bukkit.getEntity(prevItemUUID);
-                                        if (prevEntity instanceof Item && !prevEntity.isDead()) {
-                                            shouldDrop = false;
-                                        }
-                                    }
-                                    if (shouldDrop) {
-                                        int amount = random.nextInt(3) + 1;
-                                        Location dropLoc = block.getLocation().clone().add(0.5, -1, 0.5);
-                                        Item item = block.getWorld().dropItem(dropLoc, new ItemStack(rp.getResourceType(), amount));
-                                        plugin.getLogger().info("Dropped resources at resource point: " + location.getBlockX() + "," + location.getBlockY() + "," + location.getBlockZ() + " (" + rp.getResourceType() + ")");
-                                        rp.setLastDropTime(currentTime);
-                                        rp.setLastItemEntityUUID(item.getUniqueId());
+                        Block block = location.getBlock();
+                        if (block.getType() == RailCoreConstants.RESOURCE_POINT_CENTER_MATERIAL) {
+                            if (block.getChunk().isLoaded()) {
+                                boolean shouldDrop = true;
+                                UUID prevItemUUID = rp.getLastItemEntityUUID();
+                                if (prevItemUUID != null) {
+                                    Entity prevEntity = Bukkit.getEntity(prevItemUUID);
+                                    if (prevEntity instanceof Item && !prevEntity.isDead()) {
+                                        shouldDrop = false;
                                     }
                                 }
-                            } else {
-                                plugin.getLogger().warning("Fluorite block missing at " + location + ". Resource point is now broken and will be removed.");
-                                resourcePoints.get(worldUUID).remove(location);
+                                if (shouldDrop) {
+                                    int amount = random.nextInt(3) + 1;
+                                    Location dropLoc = block.getLocation().clone().add(0.5, -1, 0.5);
+
+                                    Material resourceType = rp.getResourceType();
+                                    Material actualDropType = resourceType;
+                                    if (resourceType == Material.ROTTEN_FLESH) {
+                                        actualDropType = selectWeighted(RailCoreConstants.MONSTER_LOOTS, RailCoreConstants.totalMonsterLootWeight);
+                                    } else if (resourceType == Material.WHEAT) {
+                                        actualDropType = selectWeighted(RailCoreConstants.CROP_LOOTS, RailCoreConstants.totalCropLootWeight);
+                                    }
+
+                                    Item item = block.getWorld().dropItem(dropLoc, new ItemStack(actualDropType, amount));
+                                    plugin.getLogger().info("Dropped resources at resource point: " + location.getBlockX() + "," + location.getBlockY() + "," + location.getBlockZ() + " (" + rp.getResourceType() + ")");
+                                    rp.setLastDropTime(currentTime);
+                                    rp.setLastItemEntityUUID(item.getUniqueId());
+                                }
                             }
+                        } else {
+                            plugin.getLogger().warning("Fluorite block missing at " + location + ". Resource point is now broken and will be removed.");
+                            resourcePoints.get(worldUUID).remove(location);
                         }
+                        
                     });
                 });
                 if (currentTime - previousSaveTime >= RailCoreConstants.RESOURCE_POINT_SAVE_INTERVAL_MILLIS) {
@@ -208,7 +214,7 @@ public class ResourcePointManager implements Listener {
                     previousSaveTime = currentTime;
                 }
             }
-        }.runTaskTimer(plugin, RailCoreConstants.RESOURCE_DROP_CHECK_INTERVAL_TICKS, RailCoreConstants.RESOURCE_DROP_CHECK_INTERVAL_TICKS);
+        }.runTaskTimer(plugin, RailCoreConstants.RESOURCE_DROP_INTERVAL_TICKS, RailCoreConstants.RESOURCE_DROP_INTERVAL_TICKS);
     }
 
     @EventHandler
